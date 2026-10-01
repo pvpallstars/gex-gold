@@ -3,29 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gold GEX Dashboard</title>
+<title>Gold GEX & SMC Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   :root{--bg:#0d0f14;--card:#151922;--line:#232834;--txt:#e6e9ef;
-        --dim:#8b93a7;--up:#26c281;--dn:#ef4d56;--call:#3b82f6;--put:#ef4444}
+        --dim:#8b93a7;--up:#26c281;--dn:#ef4d56;--call:#3b82f6;--put:#ef4444;--smc:#a855f7;--flip:#f59e0b}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
        font-family:system-ui,"Noto Sans Thai",sans-serif;padding:12px;
-       height:100vh;overflow:hidden}
+       min-height:100vh;overflow-y:auto}
   
   .dashboard-grid{
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1.2fr;
     gap: 12px;
-    height: calc(100vh - 24px);
   }
   
-  .col { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .col { display: flex; flex-direction: column; gap: 12px; }
   .card{background:var(--card);border:1px solid var(--line);
         border-radius:12px;padding:14px;flex-shrink:0}
         
   .head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
-  .big{font-size:28px;font-weight:700;color:var(--up);line-height:1.1}
+  .big{font-size:26px;font-weight:700;color:var(--up);line-height:1.1}
   .lbl{font-size:12px;color:var(--dim);letter-spacing:.5px}
   .row{display:flex;justify-content:space-between;align-items:center;
        padding:8px 10px;border-left:4px solid var(--line);
@@ -43,6 +42,27 @@
   table{width:100%;border-collapse:collapse;font-size:12px}
   td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
   th:first-child,td:first-child{text-align:left}
+  
+  .smc-full-card { margin-top: 12px; }
+  .smc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .smc-box { background: #1a1528; border: 1px solid #3b2863; border-radius: 8px; padding: 10px; }
+  .smc-box.flip-box { background: #261f12; border: 1px solid #785218; }
+  .smc-label { font-size: 11px; color: #c084fc; text-transform: uppercase; font-weight: 600; }
+  .smc-label.flip-lbl { color: #fcd34d; }
+  .smc-val { font-size: 14px; font-weight: 600; color: #fff; margin-top: 2px; }
+
+  .alert-btn {
+    display: block; width: 100%; padding: 12px; border-radius: 8px;
+    font-weight: 700; font-size: 14px; text-align: center; margin-bottom: 12px; border: none;
+  }
+  .btn-buy { background: rgba(38, 194, 129, 0.2); border: 1px solid var(--up); color: #26c281; box-shadow: 0 0 15px rgba(38, 194, 129, 0.2); }
+  .btn-sell { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--dn); color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+  .btn-wait { background: #1f2430; border: 1px solid #3b4252; color: #8b93a7; }
 </style>
 </head>
 <body>
@@ -50,8 +70,6 @@
 <div id="stale"></div>
 
 <div class="dashboard-grid">
-  
-  <!-- คอลัมน์ที่ 1: ราคาหลัก + แนวราคา (Levels) -->
   <div class="col">
     <div class="card head">
       <div>
@@ -65,14 +83,12 @@
         <div class="d">Basis <span id="basis">—</span></div>
       </div>
     </div>
-
-    <div class="card" style="flex-grow:1;">
-      <div class="lbl" style="margin-bottom:8px">แนวราคา · เรียงจากสูงไปต่ำ</div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:8px">แนวราคา GEX · เรียงจากสูงไปต่ำ</div>
       <div id="levels"></div>
     </div>
   </div>
 
-  <!-- คอลัมน์ที่ 2: กราฟแท่ง GEX -->
   <div class="col">
     <div class="card" style="height:100%; display:flex; flex-direction:column;">
       <div class="lbl" style="margin-bottom:8px">GEX by Strike ($mm / 1% move)</div>
@@ -82,14 +98,20 @@
     </div>
   </div>
 
-  <!-- คอลัมน์ที่ 3: ตารางสรุปตัวเลขทั้งหมด -->
   <div class="col">
     <div class="card" style="height:100%;">
-      <div class="lbl" style="margin-bottom:8px">สรุปตัวเลข</div>
+      <div class="lbl" style="margin-bottom:8px">สรุปตัวเลข GEX</div>
       <table id="stats"></table>
     </div>
   </div>
+</div>
 
+<div class="card smc-full-card">
+  <div class="lbl" style="margin-bottom:8px; color:var(--smc); font-size:13px;">🧠 SMART MONEY CONCEPTS & FLIP / SWAP ZONE ANALYSIS</div>
+  
+  <div id="alert-banner"></div>
+
+  <div id="smc-container" class="smc-grid"></div>
 </div>
 
 <script>
@@ -100,7 +122,7 @@ fetch('data.json?t=' + Date.now())
   .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
   .then(render)
   .catch(e => document.getElementById('stale').innerHTML =
-    `<div class="warn">โหลด data.json ไม่สำเร็จ (${e}) — ตรวจสอบว่าเปิดผ่าน http://server หรือยัง</div>`);
+    `<div class="warn">โหลด data.json ไม่สำเร็จ (${e})</div>`);
 
 function render(d){
   const F = d.future_price, basis = d.basis;
@@ -114,7 +136,7 @@ function render(d){
     `${d.updated_at} · exp ${d.expiry_ct} (${d.dte} DTE)`;
 
   if (d.stale) document.getElementById('stale').innerHTML =
-    `<div class="warn">แหล่งข้อมูลสำรอง (${d.source}) · OI ของ ${d.oi_date} — ไม่ใช่เรียลไทม์</div>`;
+    `<div class="warn">แหล่งข้อมูลสำรอง (${d.source}) · OI วันที่ ${d.oi_date}</div>`;
 
   const lv = [...d.levels];
   lv.push({price:F, tag:'ราคาปัจจุบัน Future', kind:'now'});
@@ -123,14 +145,28 @@ function render(d){
   document.getElementById('levels').innerHTML = lv.map(l => {
     const diff = l.price - F;
     const dist = l.kind === 'now' ? '' :
-      `<div class="dist ${diff>=0?'pos':'neg'}">${diff>=0?'เหนือ':'ใต้'}<br>
-       ${diff>=0?'+':''}${f2(diff)}</div>`;
-    const sub  = l.kind === 'now' ? '' :
-      `<div class="d">${l.tag} · Spot ${f2(l.price - basis)}</div>`;
-    return `<div class="row ${l.kind}">
-              <div><div class="k">${f2(l.price)}</div>${sub}</div>${dist}
-            </div>`;
+      `<div class="dist ${diff>=0?'pos':'neg'}">${diff>=0?'เหนือ':'ใต้'}<br>${diff>=0?'+':''}${f2(diff)}</div>`;
+    const sub  = l.kind === 'now' ? '' : `<div class="d">${l.tag}</div>`;
+    return `<div class="row ${l.kind}"><div><div class="k">${f2(l.price)}</div>${sub}</div>${dist}</div>`;
   }).join('');
+
+  if(d.smc) {
+    if(d.smc.alert_btn) {
+      document.getElementById('alert-banner').innerHTML = `
+        <div class="alert-btn ${d.smc.alert_btn.class}">${d.smc.alert_btn.text}</div>
+      `;
+    }
+
+    document.getElementById('smc-container').innerHTML = `
+      <div class="smc-box"><div class="smc-label">HTF Bias</div><div class="smc-val">${d.smc.htf_bias}</div></div>
+      <div class="smc-box"><div class="smc-label">Demand Zone (1)</div><div class="smc-val" style="color:var(--up)">🟢 ${d.smc.demand_1}</div></div>
+      <div class="smc-box"><div class="smc-label">Supply Zone (1)</div><div class="smc-val" style="color:var(--dn)">🔴 ${d.smc.supply_1}</div></div>
+      <div class="smc-box flip-box"><div class="smc-label flip-lbl">⚡ Flip / Swap Zone</div><div class="smc-val" style="color:#fbbf24">${d.smc.flip_zone}</div></div>
+      <div class="smc-box" style="grid-column: span 2;"><div class="smc-label flip-lbl">🔄 Flip Zone Details (SRF / DnS Swap)</div><div class="smc-val" style="font-size:12px; color:#fde047;">${d.smc.flip_desc}</div></div>
+      <div class="smc-box"><div class="smc-label">Current Phase / MSS</div><div class="smc-val" style="color:#f59e0b">${d.smc.mss_status}</div></div>
+      <div class="smc-box" style="grid-column: 1 / -1;"><div class="smc-label">Confluence & Status Details</div><div class="smc-val" style="font-size:13px; color:var(--txt);">💡 ${d.smc.status_desc}</div></div>
+    `;
+  }
 
   new Chart(document.getElementById('chart'), {
     type:'bar',
@@ -143,8 +179,7 @@ function render(d){
       }]
     },
     options:{
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins:{legend:{display:false}},
       scales:{
         x:{ticks:{color:'#8b93a7',maxRotation:90,font:{size:10}},grid:{color:'#1e2430'}},
@@ -155,17 +190,11 @@ function render(d){
 
   const rows = [
     ['Net GEX',      (d.net_gex/1e6).toFixed(1) + ' $mm'],
-    ['Gamma Flip',   d.gamma_flip ? f2(d.gamma_flip) : 'ไม่พบในช่วงที่สแกน'],
+    ['Gamma Flip',   d.gamma_flip ? f2(d.gamma_flip) : 'N/A'],
     ['Max Pain',     f2(d.max_pain)],
     ['Call Wall',    f2(d.call_wall)],
     ['Put Wall',     f2(d.put_wall)],
-    ['จำนวน strike', d.by_strike.length],
-    ['Total OI',     d.total_oi.toLocaleString()],
-    ['DTE',          d.dte + ' วัน'],
-    ['Expiry',       d.expiry_ct],
-    ['Basis',        f2(d.basis) + ' (' + d.basis_source + ')'],
-    ['Risk-free',    (d.risk_free*100).toFixed(2) + '%'],
-    ['Source',       d.source]
+    ['DTE',          d.dte + ' วัน']
   ];
   document.getElementById('stats').innerHTML =
     rows.map(r => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join('');
