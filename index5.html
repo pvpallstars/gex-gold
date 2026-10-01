@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gold GEX Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{--bg:#0d0f14;--card:#151922;--line:#232834;--txt:#e6e9ef;
+        --dim:#8b93a7;--up:#26c281;--dn:#ef4d56;--call:#3b82f6;--put:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:system-ui,"Noto Sans Thai",sans-serif;padding:16px}
+  .wrap{max-width:860px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);
+        border-radius:14px;padding:16px;margin-bottom:14px}
+  .head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .big{font-size:34px;font-weight:700;color:var(--up);line-height:1.1}
+  .lbl{font-size:12px;color:var(--dim);letter-spacing:.5px}
+  .row{display:flex;justify-content:space-between;align-items:center;
+       padding:10px 12px;border-left:4px solid var(--line);
+       border-radius:6px;margin-bottom:6px;background:#1b2029}
+  .row.call{border-left-color:var(--call)}
+  .row.put{border-left-color:var(--put)}
+  .row.flip{border-left-color:#f59e0b;background:#241f12}
+  .row.now{border-left-color:var(--up);background:#13251c;font-weight:700}
+  .k{font-size:17px;font-weight:600}
+  .d{font-size:12px;color:var(--dim);margin-top:2px}
+  .dist{font-size:13px;text-align:right;white-space:nowrap}
+  .pos{color:var(--up)}.neg{color:var(--dn)}
+  .warn{background:#2a1f0d;border:1px solid #6b4e12;color:#f0b429;
+        padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="stale"></div>
+
+  <div class="card head">
+    <div>
+      <div class="lbl">FUTURE <span id="sym"></span></div>
+      <div class="big" id="fut">—</div>
+      <div class="d" id="ts">—</div>
+    </div>
+    <div style="text-align:right">
+      <div class="lbl">SPOT XAUUSD</div>
+      <div style="font-size:24px;font-weight:600" id="spot">—</div>
+      <div class="d">Basis <span id="basis">—</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px">แนวราคา · เรียงจากสูงไปต่ำ</div>
+    <div id="levels"></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px">GEX by Strike ($mm / 1% move)</div>
+    <canvas id="chart" height="220"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="margin-bottom:10px">สรุปตัวเลข</div>
+    <table id="stats"></table>
+  </div>
+</div>
+
+<script>
+const f2 = n => Number(n).toLocaleString('en-US',
+  {minimumFractionDigits:2, maximumFractionDigits:2});
+
+fetch('data.json?t=' + Date.now())
+  .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(e => document.getElementById('stale').innerHTML =
+    `<div class="warn">โหลด data.json ไม่สำเร็จ (${e}) — รัน fetch_gex.py ก่อน
+     และต้องเปิดผ่าน http:// ไม่ใช่ file://</div>`);
+
+function render(d){
+  const F = d.future_price, basis = d.basis;
+
+  document.getElementById('sym').textContent   = d.symbol;
+  document.getElementById('fut').textContent   = f2(F);
+  document.getElementById('spot').textContent  = f2(d.spot_price);
+  document.getElementById('basis').textContent =
+    `${basis>=0?'+':''}${f2(basis)} · ${d.basis_source}`;
+  document.getElementById('ts').textContent =
+    `${d.updated_at} · exp ${d.expiry_ct} (${d.dte} DTE) · ${d.source}`;
+
+  if (d.stale) document.getElementById('stale').innerHTML =
+    `<div class="warn">แหล่งข้อมูลสำรอง (${d.source}) · OI ของ ${d.oi_date}
+     — ไม่ใช่เรียลไทม์</div>`;
+
+  const lv = [...d.levels];
+  lv.push({price:F, tag:'ราคาปัจจุบัน Future', kind:'now'});
+  lv.sort((a,b) => b.price - a.price);
+
+  document.getElementById('levels').innerHTML = lv.map(l => {
+    const diff = l.price - F;
+    const dist = l.kind === 'now' ? '' :
+      `<div class="dist ${diff>=0?'pos':'neg'}">${diff>=0?'เหนือ':'ใต้'}<br>
+       ${diff>=0?'+':''}${f2(diff)}</div>`;
+    const sub  = l.kind === 'now' ? '' :
+      `<div class="d">${l.tag} · Spot ${f2(l.price - basis)}</div>`;
+    return `<div class="row ${l.kind}">
+              <div><div class="k">${f2(l.price)}</div>${sub}</div>${dist}
+            </div>`;
+  }).join('');
+
+  new Chart(document.getElementById('chart'), {
+    type:'bar',
+    data:{
+      labels: d.by_strike.map(s => s.strike),
+      datasets:[{
+        data: d.by_strike.map(s => s.gex / 1e6),
+        backgroundColor: d.by_strike.map(s => s.gex >= 0 ? '#3b82f6cc' : '#ef4444cc'),
+        borderWidth:0
+      }]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#8b93a7',maxRotation:90},grid:{color:'#1e2430'}},
+        y:{ticks:{color:'#8b93a7'},grid:{color:'#1e2430'}}
+      }
+    }
+  });
+
+  const rows = [
+    ['Net GEX',      (d.net_gex/1e6).toFixed(1) + ' $mm'],
+    ['Gamma Flip',   d.gamma_flip ? f2(d.gamma_flip) : 'ไม่พบในช่วงที่สแกน'],
+    ['Max Pain',     f2(d.max_pain)],
+    ['Call Wall',    f2(d.call_wall)],
+    ['Put Wall',     f2(d.put_wall)],
+    ['จำนวน strike', d.by_strike.length],
+    ['Total OI',     d.total_oi.toLocaleString()],
+    ['DTE',          d.dte + ' วัน'],
+    ['Expiry',       d.expiry_ct],
+    ['Basis',        f2(d.basis) + ' (' + d.basis_source + ')'],
+    ['Risk-free',    (d.risk_free*100).toFixed(2) + '%'],
+    ['Source',       d.source]
+  ];
+  document.getElementById('stats').innerHTML =
+    rows.map(r => `<tr><td>${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join('');
+}
+</script>
+</body>
+</html>
