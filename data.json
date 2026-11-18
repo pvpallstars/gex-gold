@@ -1,10 +1,10 @@
 {
   "symbol": "GCZ6",
-  "future_price": 3866.800048828125,
-  "spot_price": 3823.930048828125,
+  "future_price": 3797.800048828125,
+  "spot_price": 3754.930048828125,
   "basis": 42.87,
   "basis_source": "implied-carry r=4.20%",
-  "updated_at": "2026-11-17 04:42 UTC",
+  "updated_at": "2026-11-18 03:48 UTC",
   "expiry_ct": "2026-11-24 13:30 CST",
   "dte": 54,
   "source": "GLD (scaled)",
@@ -64,7 +64,7 @@
   ],
   "smc": {
     "htf_bias": "Bullish (Discount / Flip Support Active)",
-    "supply_1": "3,995.90 - 4,005.90",
+    "supply_1": "3,917.20 - 3,927.20",
     "demand_1": "3,835.20 - 3,845.20",
     "flip_zone": "3,884.70 - 3,892.70",
     "flip_desc": "อดีต Supply/Resistance ที่ถูกเบรกและพลิกมาเป็นแนวรับ @ 3,892.70",
