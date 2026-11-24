@@ -1,10 +1,10 @@
 {
   "symbol": "GCZ6",
-  "future_price": 3539.0,
-  "spot_price": 3496.13,
+  "future_price": 3622.300048828125,
+  "spot_price": 3579.430048828125,
   "basis": 42.87,
   "basis_source": "implied-carry r=4.20%",
-  "updated_at": "2026-11-21 03:22 UTC",
+  "updated_at": "2026-11-24 06:16 UTC",
   "expiry_ct": "2026-11-24 13:30 CST",
   "dte": 54,
   "source": "GLD (scaled)",
@@ -63,14 +63,14 @@
     }
   ],
   "smc": {
-    "htf_bias": "Bullish (Discount / Flip Support Active)",
-    "supply_1": "3,884.00 - 3,894.00",
+    "htf_bias": "Bearish (Premium / Flip Resistance Active)",
+    "supply_1": "3,681.00 - 3,691.00",
     "demand_1": "3,502.90 - 3,512.90",
-    "flip_zone": "3,843.70 - 3,851.70",
-    "flip_desc": "อดีต Demand/Support ที่หลุดและพลิกมาเป็นแนวต้าน @ 3,843.70",
+    "flip_zone": "3,588.70 - 3,596.70",
+    "flip_desc": "อดีต Supply/Resistance ที่ถูกเบรกและพลิกมาเป็นแนวรับ @ 3,596.70",
     "current_phase": "Zone Swap / Retest Phase",
     "poi": "Order Block @ 3,515.90",
-    "mss_status": "Bullish MSS Confirmed",
+    "mss_status": "Bearish MSS / Rejection",
     "status_desc": "📍 วิเคราะห์ตามหลักการ Flip Zone (SRF / Swap Zone สำเร็จ)",
     "alert_btn": {
       "type": "wait",
